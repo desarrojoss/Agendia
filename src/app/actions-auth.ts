@@ -96,6 +96,8 @@ export async function registrarNegocio(datos: DatosRegistro): Promise<R> {
       t.set(slugRef, { bizId: bizRef.id });
       t.set(bizRef, { ...biz, creado: Date.now() });
       t.set(db.collection("members").doc(uid), miembro);
+      // Todo negocio tiene al menos una sede; con una sola, el cliente ni la ve en el flujo de reserva.
+      t.set(bizRef.collection("locations").doc(), { nombre: "Sede principal", direccion: "", whatsapp: "", activo: true, orden: 0 });
     });
   } catch (e) {
     await auth.deleteUser(uid).catch(() => {}); // sin negocio no se deja una cuenta huérfana

@@ -9,14 +9,14 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 - Al cerrar la ejecución 10 se crea **DOCUMENTACION.md**, la referencia completa (como la de Ordenia). Desde entonces manda ese archivo.
 
 ## Estado
-- **2026-11-14:** plan aprobado por Joss. **Ejecuciones 0 y 1 cerradas** (base desplegada; registro, login, sesión y aislamiento por negocio verificados de punta a punta).
-- **Siguiente:** ejecución 2 (Configuración), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
+- **2026-11-14:** plan aprobado por Joss. **Ejecuciones 0, 1 y 2 cerradas** (base, acceso y configuración del negocio verificados de punta a punta).
+- **Siguiente:** ejecución 3 (Motor de disponibilidad), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
 
 | Ejecución | Estado |
 |---|---|
 | 0 Base | **cerrada** (2026-11-14) |
 | 1 Negocios y acceso | **cerrada** (2026-11-14) |
-| 2 Configuración | pendiente |
+| 2 Configuración | **cerrada** (2026-11-14) |
 | 3 Motor de disponibilidad | pendiente |
 | 4 Reserva pública | pendiente |
 | 5 Gestionar sin cuenta y lista de espera | pendiente |
@@ -40,6 +40,15 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 - **Modelo:** `members/{uid}` = `{ bizId, rol: "dueno" | "profesional", staffId }` es la ÚNICA fuente del `bizId`. Estar en Firebase Auth no basta: sin documento `members` no se entra (la API key pública deja crear usuarios sueltos). `slugs/{slug}` garantiza enlaces únicos (transacción). Los enlaces reservados y el formato viven en `src/lib/slug.ts` (con prueba).
 - **Prueba de punta a punta:** `BASE_URL=http://localhost:3100 node scripts/e2e-acceso.mjs` (Playwright; crea 2 negocios de prueba y los borra al terminar). 17 comprobaciones, todas bien: redirección sin sesión, enlace libre/ocupado/reservado, correo repetido, aislamiento entre negocios (un `bizId` en la URL se ignora), salir, contraseña mala, usuario sin negocio.
 - **Límites conocidos (demo gratis):** el registro es abierto y sin captcha ni verificación de correo; Firebase Auth no se puede cerrar sin Identity Platform (facturación). Si hiciera falta frenar abuso: verificar correo o un campo de invitación.
+
+## Configuración (ejecución 2)
+- **Panel** (`/panel/*`, `layout.tsx` exige sesión): Resumen con el asistente de 4 pasos y el enlace para compartir; Servicios, Equipo, Sedes, Bloqueos y Negocio (estos 5 solo para el dueño con `requireDueno()`; un profesional vuelve a `/panel`).
+- **Datos** (todo bajo `businesses/{bizId}/`): `locations` (todo negocio nace con "Sede principal"), `services` (duración de 5 en 5, precio COP, anticipo ninguno/porcentaje/monto, sedes, orden), `staff` (sede, servicios, foto, horario por día con varios tramos = pausas, `icsToken` para el calendario de la ejecución 7), `blocks` (alcance negocio/sede/persona; se guardan en UTC desde la hora de Bogotá).
+- **Reglas del negocio** en `businesses/{bizId}.reglas`: anticipación (por defecto 2 h), ventana (30 días), límite para cancelar (4 h), intervalo 15 o 30 min, margen entre citas. El enlace (slug) se puede cambiar: transacción que reserva el nuevo y libera el viejo.
+- **Lógica pura con pruebas** (`npm test`, 15 pruebas): `slug.ts`, `tiempo.ts` (zona ↔ UTC con `Intl`, incluso horario de verano), `validaciones.ts` (todo lo que el dueño configura). Las acciones de `src/app/panel/actions-config.ts` empiezan con `requireDueno()` y usan el `bizId` de la sesión; un id de otro negocio devuelve 404.
+- **Imágenes (Cloudinary, cuenta de Ordenia):** subida firmada desde el servidor, directo del navegador a Cloudinary, en la carpeta `agendia/<bizId>/(logo|personal)/`. Solo se aceptan URLs de esa carpeta (`imagenValida`). Las variables `CLOUDINARY_*` están en `.env.local` y en Vercel (secretas).
+- **Prueba de punta a punta:** `BASE_URL=http://localhost:3100 node scripts/e2e-config.mjs` (31 comprobaciones: sedes, servicios con anticipo, orden, ocultar, foto real a Cloudinary, horario inválido, bloqueos en UTC, datos y reglas, cambio de enlace, aislamiento entre negocios, rol profesional). Borra todo lo que crea, incluidas las imágenes.
+- **Pendiente para la ejecución 7:** invitar al profesional por correo (el campo `email` ya existe) y su calendario ICS.
 
 ## Decisiones de Joss (2026-11-14)
 - **Versión completa, todo de una:** varios negocios con registro, roles dueño y profesional, recordatorio por correo y WhatsApp automático, y botón manual de WhatsApp. Nada se deja "para v2".
