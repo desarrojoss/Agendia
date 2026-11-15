@@ -9,13 +9,13 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 - Al cerrar la ejecución 10 se crea **DOCUMENTACION.md**, la referencia completa (como la de Ordenia). Desde entonces manda ese archivo.
 
 ## Estado
-- **2026-11-14:** plan aprobado por Joss. **Ejecución 0 cerrada** (base desplegada y verificada).
-- **Siguiente:** ejecución 1 (Negocios y acceso), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
+- **2026-11-14:** plan aprobado por Joss. **Ejecuciones 0 y 1 cerradas** (base desplegada; registro, login, sesión y aislamiento por negocio verificados de punta a punta).
+- **Siguiente:** ejecución 2 (Configuración), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
 
 | Ejecución | Estado |
 |---|---|
 | 0 Base | **cerrada** (2026-11-14) |
-| 1 Negocios y acceso | pendiente |
+| 1 Negocios y acceso | **cerrada** (2026-11-14) |
 | 2 Configuración | pendiente |
 | 3 Motor de disponibilidad | pendiente |
 | 4 Reserva pública | pendiente |
@@ -33,6 +33,13 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 - **Verificado:** `GET /api/health` responde `{"ok":true}` en local y en producción (escribe y lee un documento en Firestore).
 - **Trampas:** las APIs de Firestore, Identity Toolkit e IAM se habilitaron por la API de Service Usage; los permisos del service account tardan ~30 s en propagarse (un `PERMISSION_DENIED` justo después de crearlo es normal). Auth por correo solo se activa desde la consola (Identity Platform exige facturación): ya está hecho.
 - **Pendientes de cuentas** (para ejecuciones posteriores): Cloudinary (reusar la de Ordenia), Resend, Stripe de pruebas, Meta for Developers.
+
+## Acceso y aislamiento (ejecución 1)
+- **Rutas:** `/registro` (crea usuario + negocio + enlace, paso 1 del asistente), `/login`, `/panel` (protegido), `/<slug>` (página pública del negocio; por ahora solo el encabezado), `proxy.ts` revisa la cookie `session` en `/panel`.
+- **Sesión:** cookie `session` (Firebase session cookie, 5 días, httpOnly). `src/lib/auth-server.ts`: `getMember()`, `requireMember()` (dueño o profesional), `requireDueno()` y `negocioRef(bizId)`.
+- **Modelo:** `members/{uid}` = `{ bizId, rol: "dueno" | "profesional", staffId }` es la ÚNICA fuente del `bizId`. Estar en Firebase Auth no basta: sin documento `members` no se entra (la API key pública deja crear usuarios sueltos). `slugs/{slug}` garantiza enlaces únicos (transacción). Los enlaces reservados y el formato viven en `src/lib/slug.ts` (con prueba).
+- **Prueba de punta a punta:** `BASE_URL=http://localhost:3100 node scripts/e2e-acceso.mjs` (Playwright; crea 2 negocios de prueba y los borra al terminar). 17 comprobaciones, todas bien: redirección sin sesión, enlace libre/ocupado/reservado, correo repetido, aislamiento entre negocios (un `bizId` en la URL se ignora), salir, contraseña mala, usuario sin negocio.
+- **Límites conocidos (demo gratis):** el registro es abierto y sin captcha ni verificación de correo; Firebase Auth no se puede cerrar sin Identity Platform (facturación). Si hiciera falta frenar abuso: verificar correo o un campo de invitación.
 
 ## Decisiones de Joss (2026-11-14)
 - **Versión completa, todo de una:** varios negocios con registro, roles dueño y profesional, recordatorio por correo y WhatsApp automático, y botón manual de WhatsApp. Nada se deja "para v2".

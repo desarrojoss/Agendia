@@ -15,3 +15,21 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+@layer components {
+  .caja {
+    @apply rounded-2xl border border-black/10 bg-white p-5 shadow-sm;
+  }
+  .campo {
+    @apply mt-1 block min-h-11 w-full rounded-lg border border-black/20 bg-white px-3 py-2 text-base outline-none focus:border-brand focus:ring-2 focus:ring-brand/30;
+  }
+  .boton {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-5 py-2 font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .boton-claro {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-black/20 bg-white px-5 py-2 font-semibold transition hover:bg-black/5;
+  }
+  .aviso-error {
+    @apply rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-800;
+  }
+}
