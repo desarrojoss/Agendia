@@ -141,7 +141,7 @@ try {
   await p.waitForURL(/\/cita\//, { timeout: 25000 });
   ok(await p.getByText("Falta pagar el anticipo").first().isVisible(), "la cita con anticipo queda 'pendiente de pago'");
   const pend = (await n1.ref.collection("appointments").where("estado", "==", "pendiente_pago").get()).docs[0]?.data();
-  ok(pend?.anticipo === 12000 && Math.abs(pend.retieneHasta - Date.now() - 15 * 60_000) < 60_000 // margen de 1 min por diferencias de reloj con el servidor, "el anticipo es el 30% (12.000) y la hora se retiene 15 minutos");
+  ok(pend?.anticipo === 12000 && Math.abs(pend.retieneHasta - Date.now() - 15 * 60_000) < 60_000, "el anticipo es el 30% (12.000) y la hora se retiene 15 minutos (con 1 min de margen por el reloj del servidor)");
 
   // 6. Hora que se ocupa mientras el cliente llena sus datos
   p = await llegarAlFormulario(browser, n1.slug, { servicio: /Corte clásico/, persona: /Luis/, hora: "16:00", nombre: "Cliente Tarde", whatsapp: "300 111 0004" });
