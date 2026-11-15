@@ -66,3 +66,6 @@ export type Personal = {
 export type Bloqueo = { staffId: string | null; sedeId: string | null; inicio: number; fin: number; motivo: string };
 
 export type Con<T> = T & { id: string };
+
+/** Estados de una cita. Solo "cancelada" libera la hora; "pendiente_pago" la retiene hasta `retieneHasta`. */
+export type EstadoCita = "pendiente_pago" | "confirmada" | "atendida" | "no_llego" | "cancelada";

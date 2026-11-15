@@ -9,15 +9,15 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 - Al cerrar la ejecución 10 se crea **DOCUMENTACION.md**, la referencia completa (como la de Ordenia). Desde entonces manda ese archivo.
 
 ## Estado
-- **2026-11-14:** plan aprobado por Joss. **Ejecuciones 0, 1 y 2 cerradas** (base, acceso y configuración del negocio verificados de punta a punta).
-- **Siguiente:** ejecución 3 (Motor de disponibilidad), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
+- **2026-11-14:** plan aprobado por Joss. **Ejecuciones 0, 1, 2 y 3 cerradas** (base, acceso, configuración y motor de disponibilidad verificados de punta a punta).
+- **Siguiente:** ejecución 4 (Reserva pública), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
 
 | Ejecución | Estado |
 |---|---|
 | 0 Base | **cerrada** (2026-11-14) |
 | 1 Negocios y acceso | **cerrada** (2026-11-14) |
 | 2 Configuración | **cerrada** (2026-11-14) |
-| 3 Motor de disponibilidad | pendiente |
+| 3 Motor de disponibilidad | **cerrada** (2026-11-14) |
 | 4 Reserva pública | pendiente |
 | 5 Gestionar sin cuenta y lista de espera | pendiente |
 | 6 Pagos y anticipos (Stripe, prueba) | pendiente |
@@ -49,6 +49,14 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 - **Imágenes (Cloudinary, cuenta de Ordenia):** subida firmada desde el servidor, directo del navegador a Cloudinary, en la carpeta `agendia/<bizId>/(logo|personal)/`. Solo se aceptan URLs de esa carpeta (`imagenValida`). Las variables `CLOUDINARY_*` están en `.env.local` y en Vercel (secretas).
 - **Prueba de punta a punta:** `BASE_URL=http://localhost:3100 node scripts/e2e-config.mjs` (31 comprobaciones: sedes, servicios con anticipo, orden, ocultar, foto real a Cloudinary, horario inválido, bloqueos en UTC, datos y reglas, cambio de enlace, aislamiento entre negocios, rol profesional). Borra todo lo que crea, incluidas las imágenes.
 - **Pendiente para la ejecución 7:** invitar al profesional por correo (el campo `email` ya existe) y su calendario ICS.
+
+## Motor de disponibilidad (ejecución 3)
+- **`src/lib/disponibilidad.ts`** (puro, sin Firebase ni Next): `horasLibres(entrada)` devuelve las horas que puede reservar un cliente y quién está libre en cada una. Aplica a la vez: horario con pausas (tramos), duración completa dentro del tramo, intervalo de 15/30 min contado desde el inicio del tramo, citas (un profesional no atiende dos a la vez) con margen, bloqueos (persona, sede o negocio; terminar justo cuando empieza un bloqueo SÍ se permite), anticipación mínima, ventana de reserva y días pasados, y la zona horaria del negocio (el "hoy" y el día de la semana se miran en Bogotá; todo se guarda en UTC).
+- **Otras funciones:** `diasDisponibles()` (días con cupo para el calendario), `elegirPersonal()` ("cualquiera" reparte la carga: el que tiene menos citas ese día; empate = el primero de la lista), `sigueLibre()` (revalidar al reservar), `ocupaTiempo()` (solo las canceladas liberan la hora; "pendiente_pago" retiene hasta `retieneHasta` y luego se libera sola), `ignorarCitaId` (al reprogramar, la cita no se estorba a sí misma).
+- **Estados de cita** (`EstadoCita` en `types.ts`): `pendiente_pago`, `confirmada`, `atendida`, `no_llego`, `cancelada`. Las citas viven en `businesses/{bizId}/appointments/{id}` con `staffId`, `servicioId`, `inicio`, `fin` (UTC), `estado`, `retieneHasta?`.
+- **`src/lib/disponibilidad-datos.ts`:** `consultar(bizId, consulta)` carga de Firestore lo que el motor necesita (negocio, servicio, personal de la sede que lo ofrece, bloqueos y citas del rango) y lo calcula. No usa la sesión: la reserva pública de la ejecución 4 lo reutiliza con un `bizId` resuelto desde el enlace.
+- **Pantalla "Disponibilidad"** (`/panel/disponibilidad`, solo dueño): muestra qué horas vería hoy un cliente (servicio, profesional o "cualquiera", fecha) y los próximos días con cupo.
+- **Pruebas:** `npm test` (35 en total; 20 son del motor: pausas, duración, intervalo, citas, margen, los 3 alcances de bloqueo, varios días, anticipación, ventana, zona horaria, varios profesionales, reprogramar, horario de verano) y `BASE_URL=... node scripts/e2e-disponibilidad.mjs` (15 comprobaciones con datos reales: cita, pago pendiente vigente y vencido, cancelada, bloqueo, "cualquiera", domingo, fuera de ventana, calendario y anticipación). Las pruebas encontraron un error real: las citas sin id no se contaban en el reparto de "cualquiera" (corregido).
 
 ## Decisiones de Joss (2026-11-14)
 - **Versión completa, todo de una:** varios negocios con registro, roles dueño y profesional, recordatorio por correo y WhatsApp automático, y botón manual de WhatsApp. Nada se deja "para v2".

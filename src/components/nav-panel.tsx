@@ -9,6 +9,7 @@ const ENLACES = [
   { href: "/panel/equipo", texto: "Equipo", dueno: true },
   { href: "/panel/sedes", texto: "Sedes", dueno: true },
   { href: "/panel/bloqueos", texto: "Bloqueos", dueno: true },
+  { href: "/panel/disponibilidad", texto: "Disponibilidad", dueno: true },
   { href: "/panel/negocio", texto: "Negocio", dueno: true },
 ];
 
