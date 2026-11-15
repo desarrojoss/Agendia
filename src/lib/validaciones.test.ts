@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { horarioPorDefecto, horarioVacio, normalizarWhatsapp, validarAnticipo, validarBloqueo, validarHorario, validarNegocio, validarPersonal, validarReglas, validarSede, validarServicio } from "./validaciones.ts";
+import { horarioPorDefecto, horarioVacio, normalizarWhatsapp, validarAnticipo, validarBloqueo, validarCliente, validarHorario, validarNegocio, validarPersonal, validarReglas, validarSede, validarServicio } from "./validaciones.ts";
 
 const ok = (r: unknown): r is { valor: never } => !!r && typeof r === "object" && "valor" in r;
 const mensaje = (r: unknown) => (r as { error: string }).error;
@@ -82,4 +82,13 @@ test("bloqueo: se guarda en UTC con la hora de Bogotá y respeta el alcance", ()
   assert.equal(ok(validarBloqueo({ ...base, alcance: "personal" }, ctx)), false);
   assert.equal(ok(validarBloqueo({ ...base, alcance: "personal", staffId: "p1" }, ctx)), true);
   assert.equal(ok(validarBloqueo({ ...base, alcance: "sede", sedeId: "nope" }, ctx)), false);
+});
+
+test("cliente que reserva: nombre y WhatsApp obligatorios, correo opcional", () => {
+  assert.deepEqual(validarCliente({ nombre: " Ana  Gómez ", whatsapp: "300 123 4567" }), { valor: { nombre: "Ana Gómez", whatsapp: "573001234567", email: "" } });
+  assert.equal(ok(validarCliente({ nombre: "A", whatsapp: "3001234567" })), false);
+  assert.equal(ok(validarCliente({ nombre: "Ana", whatsapp: "" })), false);
+  assert.equal(ok(validarCliente({ nombre: "Ana", whatsapp: "12" })), false);
+  assert.equal(ok(validarCliente({ nombre: "Ana", whatsapp: "3001234567", email: "mal" })), false);
+  assert.equal(ok(validarCliente({ nombre: "Ana", whatsapp: "3001234567", email: "ANA@correo.com" })), true);
 });

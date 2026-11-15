@@ -187,3 +187,18 @@ export function validarBloqueo(e: EntradaBloqueo, ctx: { sedes: string[]; person
   } else if (e.alcance !== "negocio") return err("El alcance del bloqueo no es válido.");
   return { valor: { staffId, sedeId, inicio, fin, motivo } };
 }
+
+// ---------- Reserva pública ----------
+export type DatosCliente = { nombre: string; whatsapp: string; email: string };
+
+/** Datos que deja el cliente al reservar: nombre y WhatsApp obligatorios, correo opcional. */
+export function validarCliente(e: { nombre?: unknown; whatsapp?: unknown; email?: unknown }): V<DatosCliente> {
+  const nombre = texto(e.nombre);
+  if (nombre.length < 2 || nombre.length > 60) return err("Escribe tu nombre (2 a 60 caracteres).");
+  const w = normalizarWhatsapp(e.whatsapp);
+  if ("error" in w) return err("Revisa tu WhatsApp: escríbelo con 10 dígitos, por ejemplo 300 123 4567.");
+  if (!w.valor) return err("Escribe tu WhatsApp para poder avisarte de tu cita.");
+  const email = texto(e.email).toLowerCase();
+  if (email && !REGEX_CORREO.test(email)) return err("El correo no parece válido.");
+  return { valor: { nombre, whatsapp: w.valor, email } };
+}
