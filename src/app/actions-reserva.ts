@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { elegirPersonal, horasLibres, ocupaTiempo } from "@/lib/disponibilidad";
 import { cargarBase, consultar, type Resultado } from "@/lib/disponibilidad-datos";
+import { marcarReservada } from "@/lib/espera";
 import { getDb } from "@/lib/firebase-admin";
 import { negocioPorSlug } from "@/lib/publico";
 import { hashToken } from "@/lib/tokens";
@@ -100,6 +101,8 @@ export async function reservar(slug: string, e: EntradaReserva): Promise<ResRese
       console.error("reservar", err);
       return fallo("No pudimos guardar tu reserva. Intenta de nuevo.");
     }
+    // si estaba en la lista de espera de ese día, ya no hace falta avisarle más
+    await marcarReservada(bizId, { whatsapp: cliente.whatsapp, servicioId: e.servicioId, sedeId: e.sedeId, fecha: e.fecha }).catch((err) => console.error("marcarReservada", err));
     return { ok: true, token };
   }
   return fallo("Esa hora acaba de ser reservada por otra persona. Elige otra.");

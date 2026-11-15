@@ -9,8 +9,8 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 - Al cerrar la ejecución 10 se crea **DOCUMENTACION.md**, la referencia completa (como la de Ordenia). Desde entonces manda ese archivo.
 
 ## Estado
-- **2026-11-14:** plan aprobado por Joss. **Ejecuciones 0 a 4 cerradas** (base, acceso, configuración, motor de disponibilidad y reserva pública verificados de punta a punta).
-- **Siguiente:** ejecución 5 (Gestionar sin cuenta y lista de espera), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
+- **2026-11-14:** plan aprobado por Joss. **Ejecuciones 0 a 5 cerradas** (base, acceso, configuración, motor de disponibilidad, reserva pública y gestión de la cita sin cuenta + lista de espera, verificados de punta a punta).
+- **Siguiente:** ejecución 6 (Pagos y anticipos con Stripe de prueba), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
 
 | Ejecución | Estado |
 |---|---|
@@ -19,7 +19,7 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 | 2 Configuración | **cerrada** (2026-11-14) |
 | 3 Motor de disponibilidad | **cerrada** (2026-11-14) |
 | 4 Reserva pública | **cerrada** (2026-11-14) |
-| 5 Gestionar sin cuenta y lista de espera | pendiente |
+| 5 Gestionar sin cuenta y lista de espera | **cerrada** (2026-11-14) |
 | 6 Pagos y anticipos (Stripe, prueba) | pendiente |
 | 7 Panel | pendiente |
 | 8 Avisos (correo + WhatsApp + cron) | pendiente |
@@ -62,11 +62,21 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 - **Página `/<slug>`** (primero móvil): pasos que se van resolviendo (sede si hay 2 o más → servicio → profesional o "cualquiera", se salta si solo hay uno → día y hora → datos). Solo se ofrecen las horas que devuelve el motor. Lógica del flujo en `src/components/reserva-flow.tsx`; datos públicos (sin correos ni tokens) en `src/lib/publico.ts`.
 - **Reservar** (`src/app/actions-reserva.ts`, acción pública): NO confía en el cliente. Recalcula la disponibilidad, elige al profesional si dijo "cualquiera" y crea la cita en una **transacción con candados**: un documento `businesses/{biz}/locks/{staffId}_{tramo de 5 min}` por cada tramo que ocupa la cita (+ el margen entre citas). Firestore no deja crear dos veces el mismo, así que dos clientes nunca se quedan con la misma hora. Un candado de una cita cancelada o con el pago vencido se sobrescribe solo (`ocupaTiempo`). Si hay choque y era "cualquiera", reintenta con otro profesional (hasta 3 veces).
 - **Citas** (`businesses/{biz}/appointments`): guardan servicio, precio, profesional, sede, hora en UTC y datos del cliente. Con anticipo → `pendiente_pago` con `retieneHasta` (15 min); sin anticipo → `confirmada`. El pago real con Stripe es la ejecución 6; por ahora la pantalla lo dice con claridad.
-- **Enlace privado `/cita/<token>`:** token de 24 bytes aleatorios; en la base solo el hash (`citaTokens/{sha256}` → `{bizId, citaId}`). La página muestra la cita, "Agregar a mi calendario" (`/cita/<token>/calendario.ics`, archivo .ics con aviso 1 h antes) y "Avisar al negocio por WhatsApp" (mensaje ya armado). Cancelar y reprogramar se agregan en la ejecución 5.
+- **Enlace privado `/cita/<token>`:** token de 24 bytes aleatorios; en la base solo el hash (`citaTokens/{sha256}` → `{bizId, citaId}`). La página muestra la cita, "Agregar a mi calendario" (`/cita/<token>/calendario.ics`, archivo .ics con aviso 1 h antes) y "Avisar al negocio por WhatsApp" (mensaje ya armado). Cancelar y reprogramar: ejecución 5.
 - **Frenos de abuso:** máximo 3 citas abiertas por número de WhatsApp en un negocio; campo trampa oculto para bots; un negocio suspendido da 404.
 - **Lógica pura con pruebas** (`npm test`, 44): `reservas.ts` (candados, anticipo), `ics.ts`, `whatsapp.ts`, `validaciones.ts` (datos del cliente).
 - **Prueba de punta a punta:** `BASE_URL=... node scripts/e2e-reserva.mjs` (34 comprobaciones, con celular de 390 px): flujo completo, hora exacta en UTC, candados, token solo como hash, .ics, WhatsApp, validaciones, trampa, anticipo, hora que se ocupa mientras se llena el formulario, límite por WhatsApp, 2 sedes, y **concurrencia: 4 clientes pulsan "Confirmar" a la vez por la misma hora (3 rondas) y gana exactamente 1; con "cualquiera" y 2 profesionales, 3 clientes a la vez → 2 reservan y el tercero recibe aviso**.
 - **Trampas:** Next pone su propio `role="alert"` (anunciador de rutas) en todas las páginas: en pruebas usar `p[role="alert"]` para los avisos de la app. Las pruebas encontraron 2 errores reales de la pantalla (corregidos): se podía tocar una hora de un día mientras cargaba otro, y el aviso de "hora ocupada" se borraba al refrescar las horas.
+
+## Gestionar la cita y lista de espera (ejecución 5)
+- **Desde `/cita/<token>`** (sin cuenta): "Cambiar el día o la hora" (`/cita/<token>/reprogramar`) y "Cancelar mi cita" (con confirmación de dos toques). Reglas en `gestionDeCita()` (`reservas.ts`, con prueba): hasta `limiteCancelarMin` antes (4 h por defecto) se puede cancelar y mover; pasado el límite solo queda "Escribir al negocio" (WhatsApp) y entrar directo a `/reprogramar` devuelve a la cita. Una cita **pendiente_pago** se puede cancelar mientras no empiece, pero no mover. Todo lo valida el servidor (`src/app/actions-cita.ts`), no los botones.
+- **Reprogramar:** mismo servicio, sede y profesional. `consultar()` acepta `ignorarCitaId` (la cita no se estorba a sí misma). En una transacción toma los candados nuevos (ignorando los suyos propios), suelta los viejos y actualiza la cita (`inicioAnterior`, `reprogramadaEn`, `avisos: {}` para que la ejecución 8 avise de nuevo). Dos clientes que cambian a la misma hora a la vez: gana uno.
+- **Cancelar:** estado `cancelada`, `canceladaPor: "cliente"`. Los candados quedan pero ya no cuentan (`ocupaTiempo`) y se sobrescriben al reservar.
+- **Lista de espera** (`businesses/{biz}/waitlist/{id}` = `{ servicioId, sedeId, fecha, cliente, estado, hueco?, avisos, creado }`): en el paso de día y hora, "¿No hay hora el día que quieres? Avísame si se libera algo" (`espera-form.tsx`, `unirseListaEspera`). Solo deja anotarse si ese día NO tiene horas (si tiene, le pide reservar), no duplica (mismo número+servicio+sede+día) y máximo 5 avisos abiertos por número. Estados: `esperando` → `hueco_libre` → `reservado`.
+- **Al liberarse un hueco** (cancelar o mover una cita): `marcarEspera()` (`lib/espera.ts`) revisa si el día de verdad tiene cupo para cada servicio en espera y marca los avisos `hueco_libre` con `hueco: { fecha, hora, en }`. **El envío del correo y del WhatsApp es de la ejecución 8** (usará el campo `avisos`, idempotente) con el enlace `enlaceHueco(slug, …)` = `/<slug>?sede=&servicio=&fecha=&hora=`: esa página abre la reserva con todo ya elegido (`ReservaFlow` recibe `inicial`; datos inventados se ignoran). Gana quien reserve primero (candados). Al reservar, el aviso del cliente pasa a `reservado` (`marcarReservada`). **La vista del dueño de la lista de espera es de la ejecución 7.**
+- **Componentes compartidos:** `dias-horas.tsx` (tira de días + horas; lo usan la reserva y el cambio de hora).
+- **Pruebas:** `npm test` (46) y `BASE_URL=... node scripts/e2e-gestion.mjs` (31 comprobaciones, celular de 390 px): mover con y sin cruce consigo misma (candados exactos), 2 cambios a la misma hora a la vez → gana 1, cancelar con confirmación, hora cancelada que se vuelve a reservar, límite de horas, anticipo sin pagar, enlaces inventados, lista de espera (alta, día con horas rechazado, sin duplicados, marcado al liberarse, 2 de la lista pulsan "Confirmar" a la vez → gana 1, reservado).
+- **Trampa:** no correr `next build` con el servidor de desarrollo abierto (comparten `.next`): la página recarga en bucle. Borrar `.next` y reiniciar.
 
 ## Decisiones de Joss (2026-11-14)
 - **Versión completa, todo de una:** varios negocios con registro, roles dueño y profesional, recordatorio por correo y WhatsApp automático, y botón manual de WhatsApp. Nada se deja "para v2".

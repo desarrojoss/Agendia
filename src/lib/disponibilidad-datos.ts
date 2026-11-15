@@ -13,6 +13,8 @@ export type Consulta = {
   fecha: string;
   /** Cuántos días mostrar en el calendario (por defecto, la ventana de reserva del negocio + 1). */
   dias?: number;
+  /** Al reprogramar: la cita que se mueve no se estorba a sí misma. */
+  ignorarCitaId?: string;
 };
 
 export type Resultado =
@@ -59,7 +61,8 @@ export async function consultar(bizId: string, c: Consulta, ahora = Date.now()):
   const cargado = await cargarBase(bizId, c, c.fecha, c.dias ?? 31, ahora);
   if (!cargado.ok) return { ok: false, error: cargado.error };
   const { base, nombres, negocio } = cargado;
-  const huecos = horasLibres({ ...base, fecha: c.fecha }).map((h) => ({ ...h, asignado: elegirPersonal(h.staffIds, base.citas, c.fecha, base.zona) }));
-  const dias = diasDisponibles(base, c.fecha, c.dias ?? Math.min(negocio.reglas.ventanaDias + 1, 60));
+  const b = { ...base, ignorarCitaId: c.ignorarCitaId };
+  const huecos = horasLibres({ ...b, fecha: c.fecha }).map((h) => ({ ...h, asignado: elegirPersonal(h.staffIds, base.citas, c.fecha, base.zona, c.ignorarCitaId) }));
+  const dias = diasDisponibles(b, c.fecha, c.dias ?? Math.min(negocio.reglas.ventanaDias + 1, 60));
   return { ok: true, huecos, dias, personal: nombres, zona: base.zona };
 }

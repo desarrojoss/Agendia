@@ -1,10 +1,11 @@
 // La cita vista desde su enlace privado (/cita/<token>). El token es largo y aleatorio; en la base solo vive su hash.
 import { getDb } from "./firebase-admin";
 import { hashToken } from "./tokens";
+import { gestionDeCita } from "./reservas";
 import type { EstadoCita, Negocio } from "./types";
 
 export type CitaPublica = {
-  servicioNombre: string; precio: number; duracionMin: number; anticipo: number;
+  servicioId: string; staffId: string; servicioNombre: string; precio: number; duracionMin: number; anticipo: number;
   staffNombre: string; sedeNombre: string; sedeId: string;
   inicio: number; fin: number; estado: EstadoCita; retieneHasta?: number;
   cliente: { nombre: string; whatsapp: string; email: string };
@@ -21,5 +22,6 @@ export async function citaPorToken(token: string) {
   const negocio = n.data() as Negocio | undefined;
   if (!cita || !negocio) return null;
   const sede = (await biz.collection("locations").doc(cita.sedeId).get()).data() as { direccion?: string; whatsapp?: string } | undefined;
-  return { bizId, citaId, cita, negocio, direccion: sede?.direccion || negocio.direccion, whatsapp: sede?.whatsapp || negocio.whatsapp };
+  const gestion = gestionDeCita(cita, negocio.reglas.limiteCancelarMin, Date.now());
+  return { bizId, citaId, cita, negocio, gestion, direccion: sede?.direccion || negocio.direccion, whatsapp: sede?.whatsapp || negocio.whatsapp };
 }

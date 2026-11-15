@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CancelarCita } from "@/components/acciones-cita";
 import { citaPorToken } from "@/lib/citas-publico";
 import { cop, duracion, fechaHoraLarga } from "@/lib/format";
 import { urlWhatsapp, mensajeReserva } from "@/lib/whatsapp";
@@ -16,10 +17,10 @@ const ESTADOS = {
 } as const;
 
 export default async function Cita(props: PageProps<"/cita/[token]">) {
-  const [{ token }, { nueva }] = await Promise.all([props.params, props.searchParams]);
+  const [{ token }, { nueva, movida }] = await Promise.all([props.params, props.searchParams]);
   const r = await citaPorToken(token);
   if (!r) notFound();
-  const { cita, negocio, direccion, whatsapp } = r;
+  const { cita, negocio, direccion, whatsapp, gestion } = r;
   const cuando = fechaHoraLarga(cita.inicio, negocio.zona);
   const estado = ESTADOS[cita.estado];
   const activa = cita.estado === "confirmada" || cita.estado === "pendiente_pago";
@@ -30,6 +31,13 @@ export default async function Cita(props: PageProps<"/cita/[token]">) {
         <div role="status" className="rounded-2xl bg-brand p-5 text-white">
           <p className="text-2xl font-bold">¡Listo, {cita.cliente.nombre.split(" ")[0]}!</p>
           <p>{cita.estado === "pendiente_pago" ? "Tu hora quedó reservada. Falta el anticipo para confirmarla." : "Tu cita quedó reservada."}</p>
+        </div>
+      )}
+
+      {movida && activa && (
+        <div role="status" className="rounded-2xl bg-brand p-5 text-white">
+          <p className="text-2xl font-bold">Listo, cambiamos tu hora</p>
+          <p>Tu cita quedó para {cuando}.</p>
         </div>
       )}
 
@@ -61,9 +69,27 @@ export default async function Cita(props: PageProps<"/cita/[token]">) {
               Avisar al negocio por WhatsApp
             </a>
           )}
-          <p className="text-center text-sm text-black/60">Guarda este enlace: es tu cita. Desde aquí podrás consultarla.</p>
+          <p className="text-center text-sm text-black/60">Guarda este enlace: es tu cita. Desde aquí puedes consultarla, cambiarla o cancelarla.</p>
         </section>
       )}
+
+      {activa && (
+        <section className="caja space-y-3">
+          <h2 className="font-semibold">¿Te cambió el plan?</h2>
+          {gestion.reprogramar && <Link href={`/cita/${token}/reprogramar`} className="boton-claro w-full">Cambiar el día o la hora</Link>}
+          {gestion.cancelar && <CancelarCita token={token} />}
+          {!gestion.cancelar && !gestion.reprogramar && (
+            <>
+              <p className="text-sm text-black/70">Ya pasó el límite para cambiar o cancelar desde aquí (hasta {duracion(negocio.reglas.limiteCancelarMin)} antes de la cita). Escríbele al negocio y lo resuelven contigo.</p>
+              {whatsapp && (
+                <a href={urlWhatsapp(whatsapp, `Hola ${negocio.nombre}, necesito cambiar mi cita del ${cuando} (${cita.servicioNombre}). A nombre de ${cita.cliente.nombre}.`)} target="_blank" rel="noreferrer" className="boton w-full">Escribir al negocio</a>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      {cita.estado === "cancelada" && <p className="text-center text-sm text-black/70">Cancelaste esta cita. Cuando quieras, reserva otra hora.</p>}
 
       <p className="text-center"><Link href={`/${negocio.slug}`} className="text-sm font-semibold text-brand underline">Volver a {negocio.nombre}</Link></p>
     </main>

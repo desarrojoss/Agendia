@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { construirIcs } from "./ics.ts";
-import { anticipoDe, clavesDeCandado, PASO_CANDADO_MS } from "./reservas.ts";
+import { anticipoDe, clavesDeCandado, enlaceHueco, gestionDeCita, PASO_CANDADO_MS } from "./reservas.ts";
 import { mensajeReserva, urlWhatsapp } from "./whatsapp.ts";
 
 const MIN = 60_000;
@@ -71,4 +71,22 @@ test("anticipo: porcentaje, monto fijo, ninguno y tope en el precio", () => {
   assert.equal(anticipoDe({ precio: 40000, anticipo: { tipo: "ninguno" } }), 0);
   assert.equal(anticipoDe({ precio: 10000, anticipo: { tipo: "monto", valor: 50000 } }), 10000);
   assert.equal(anticipoDe({ precio: 33333, anticipo: { tipo: "porcentaje", valor: 50 } }), 16667);
+});
+
+test("gestión: cancelar y reprogramar solo hasta el límite", () => {
+  const ahora = t0;
+  const lim = 240; // 4 h
+  const cita = (min: number, estado: "confirmada" | "pendiente_pago" | "cancelada" | "atendida" = "confirmada") => ({ estado, inicio: ahora + min * MIN });
+  assert.deepEqual(gestionDeCita(cita(300), lim, ahora), { cancelar: true, reprogramar: true });
+  assert.deepEqual(gestionDeCita(cita(240), lim, ahora), { cancelar: true, reprogramar: true }); // justo en el límite sí
+  assert.deepEqual(gestionDeCita(cita(239), lim, ahora), { cancelar: false, reprogramar: false });
+  assert.deepEqual(gestionDeCita(cita(300, "cancelada"), lim, ahora), { cancelar: false, reprogramar: false });
+  assert.deepEqual(gestionDeCita(cita(-10, "atendida"), lim, ahora), { cancelar: false, reprogramar: false });
+  // con anticipo sin pagar: se puede cancelar aunque falte poco, pero no mover
+  assert.deepEqual(gestionDeCita(cita(30, "pendiente_pago"), lim, ahora), { cancelar: true, reprogramar: false });
+  assert.deepEqual(gestionDeCita(cita(-5, "pendiente_pago"), lim, ahora), { cancelar: false, reprogramar: false });
+});
+
+test("enlace del hueco libre lleva sede, servicio, día y hora", () => {
+  assert.equal(enlaceHueco("navaja", { sedeId: "s1", servicioId: "v2", fecha: "2026-11-20", hora: "15:30" }), "/navaja?sede=s1&servicio=v2&fecha=2026-11-20&hora=15:30");
 });
