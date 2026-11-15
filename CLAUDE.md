@@ -2,19 +2,19 @@
 
 Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `DesarroJoss/proyectos/Agendia`, pero es un **repo totalmente independiente**.
 - **Repo:** `desarrojoss/Agendia` (rama `main`). **Público** (decidido: es parte del portafolio, y además hace gratis el cron de GitHub Actions).
-- **Producción:** Vercel, equipo `desarro-joss`. La URL se anota aquí tras el primer deploy.
+- **Producción:** https://agendia-phi.vercel.app (Vercel, equipo `desarro-joss`, proyecto `agendia`; cada push a `main` despliega solo).
 
 ## Lee primero
 - **[SPEC.md](SPEC.md):** alcance completo, modelo de datos, ejecuciones y límites. Es la fuente de verdad.
 - Al cerrar la ejecución 10 se crea **DOCUMENTACION.md**, la referencia completa (como la de Ordenia). Desde entonces manda ese archivo.
 
 ## Estado
-- **2026-11-14:** plan escrito, **pendiente de aprobación de Joss**. Todavía no hay repo, código ni cuentas creadas.
-- **Siguiente:** cuando Joss diga "inicia", ejecución 0 (Base). 11 ejecuciones (0–10) en total.
+- **2026-11-14:** plan aprobado por Joss. **Ejecución 0 cerrada** (base desplegada y verificada).
+- **Siguiente:** ejecución 1 (Negocios y acceso), cuando Joss dé la orden. 11 ejecuciones (0–10) en total.
 
 | Ejecución | Estado |
 |---|---|
-| 0 Base | pendiente |
+| 0 Base | **cerrada** (2026-11-14) |
 | 1 Negocios y acceso | pendiente |
 | 2 Configuración | pendiente |
 | 3 Motor de disponibilidad | pendiente |
@@ -25,6 +25,14 @@ Responde siempre en español. Proyecto de la marca DesarroJoss. Vive en `Desarro
 | 8 Avisos (correo + WhatsApp + cron) | pendiente |
 | 9 Superadministrador | pendiente |
 | 10 Demo y cierre | pendiente |
+
+## Servicios creados (ejecución 0)
+- **Firebase:** proyecto `agendia-joss` (número 993694410954), Firestore `(default)` en `nam5` con reglas cerradas (solo el Admin SDK entra), Auth con correo y contraseña **activado**, plan Spark. App web "Agendia Web". Cuenta dueña: `desarrojoss@gmail.com`.
+- **Service account:** `firebase-adminsdk-fbsvc@agendia-joss.iam.gserviceaccount.com`, en base64 en `.env.local` y en Vercel (secreto). Nunca pasó por el chat.
+- **Vercel:** proyecto `agendia` enlazado al repo; variables `FIREBASE_SERVICE_ACCOUNT_BASE64` (secreta) y `NEXT_PUBLIC_FIREBASE_API_KEY` en Production.
+- **Verificado:** `GET /api/health` responde `{"ok":true}` en local y en producción (escribe y lee un documento en Firestore).
+- **Trampas:** las APIs de Firestore, Identity Toolkit e IAM se habilitaron por la API de Service Usage; los permisos del service account tardan ~30 s en propagarse (un `PERMISSION_DENIED` justo después de crearlo es normal). Auth por correo solo se activa desde la consola (Identity Platform exige facturación): ya está hecho.
+- **Pendientes de cuentas** (para ejecuciones posteriores): Cloudinary (reusar la de Ordenia), Resend, Stripe de pruebas, Meta for Developers.
 
 ## Decisiones de Joss (2026-11-14)
 - **Versión completa, todo de una:** varios negocios con registro, roles dueño y profesional, recordatorio por correo y WhatsApp automático, y botón manual de WhatsApp. Nada se deja "para v2".
